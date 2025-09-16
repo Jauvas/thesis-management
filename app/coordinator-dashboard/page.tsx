@@ -1,11 +1,17 @@
+"use client"
+
+import { useEffect, useMemo, useState } from "react"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Progress } from "@/components/ui/progress"
-import { Users, FileText, AlertCircle, GraduationCap } from "lucide-react"
-import Link from "next/link"
+import { Users, AlertCircle, GraduationCap, UserPlus, Check } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import type { DemoUser } from "@/lib/demo-data"
+import { proposals, supervisors, findSupervisorByUserId, findSupervisorByUserId as _ignore, getStudentById, findSuitableSupervisorsForTopic, coordinatorAssignSupervisor } from "@/lib/mock-entities"
 
 // Mock user data
 const mockUser = {
@@ -20,49 +26,13 @@ const mockUser = {
 const departmentStats = {
   totalStudents: 45,
   activeTheses: 32,
-  pendingApprovals: 8,
+  pendingApprovals: 0,
   completedThisYear: 12,
 }
 
-const mockSupervisors = [
-  {
-    id: 1,
-    name: "Dr. Michael Chen",
-    email: "m.chen@university.edu",
-    activeStudents: 2,
-    completedTheses: 8,
-    avgRating: 4.8,
-  },
-  {
-    id: 2,
-    name: "Dr. Sarah Williams",
-    email: "s.williams@university.edu",
-    activeStudents: 3,
-    completedTheses: 12,
-    avgRating: 4.9,
-  },
-]
+// Using supervisors from mock entities
 
-const mockPendingApprovals = [
-  {
-    id: 1,
-    type: "proposal",
-    student: "John Doe",
-    supervisor: "Dr. Michael Chen",
-    title: "AI-Powered Code Review Systems",
-    submittedAt: "2024-03-12",
-    priority: "high",
-  },
-  {
-    id: 2,
-    type: "final_thesis",
-    student: "Jane Smith",
-    supervisor: "Dr. Sarah Williams",
-    title: "Quantum Computing Applications in Cryptography",
-    submittedAt: "2024-03-10",
-    priority: "high",
-  },
-]
+// Coordinator no longer approves proposals; focuses on supervisor allocations
 
 const priorityColors = {
   high: "bg-red-100 text-red-800",
@@ -71,8 +41,29 @@ const priorityColors = {
 }
 
 export default function CoordinatorDashboard() {
+  const [user, setUser] = useState<DemoUser | null>(null)
+  const [assignSelection, setAssignSelection] = useState<Record<string, string>>({})
+
+  useEffect(() => {
+    // In real app, use auth user; here use mock coordinator
+    setUser(mockUser as unknown as DemoUser)
+  }, [])
+
+  const pendingAllocations = useMemo(() => proposals.filter(p => !p.assignedSupervisorId), [])
+
+  const handleAssign = (proposalId: string, studentId: string) => {
+    const supId = assignSelection[proposalId]
+    if (!supId) return
+    coordinatorAssignSupervisor("coord-1", studentId, supId)
+    const p = proposals.find(px => px.id === proposalId)
+    if (p) p.assignedSupervisorId = supId
+    alert("Supervisor assigned.")
+  }
+
+  if (!user) return <div>Loading...</div>
+
   return (
-    <DashboardLayout user={mockUser} title="Coordinator Dashboard">
+    <DashboardLayout user={user} title="Coordinator Dashboard">
       <div className="grid gap-6">
         {/* Department Overview */}
         <div className="grid md:grid-cols-4 gap-4">
@@ -89,12 +80,12 @@ export default function CoordinatorDashboard() {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Active Theses</CardTitle>
-              <FileText className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium">Pending Allocations</CardTitle>
+              <AlertCircle className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{departmentStats.activeTheses}</div>
-              <p className="text-xs text-muted-foreground">In progress</p>
+              <div className="text-2xl font-bold">{pendingAllocations.length}</div>
+              <p className="text-xs text-muted-foreground">Students awaiting supervisor</p>
             </CardContent>
           </Card>
 
@@ -121,49 +112,71 @@ export default function CoordinatorDashboard() {
           </Card>
         </div>
 
-        <Tabs defaultValue="approvals" className="space-y-4">
+        <Tabs defaultValue="allocations" className="space-y-4">
           <TabsList>
-            <TabsTrigger value="approvals">Pending Approvals</TabsTrigger>
+            <TabsTrigger value="allocations">Pending Allocations</TabsTrigger>
             <TabsTrigger value="supervisors">Supervisors</TabsTrigger>
             <TabsTrigger value="analytics">Analytics</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="approvals" className="space-y-4">
+          <TabsContent value="allocations" className="space-y-4">
             <Card>
               <CardHeader>
-                <CardTitle>Items Requiring Approval</CardTitle>
-                <CardDescription>Review and approve proposals and final theses</CardDescription>
+                <CardTitle>Pending Supervisor Allocations</CardTitle>
+                <CardDescription>Assign supervisors based on specialties and topics</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {mockPendingApprovals.map((item) => (
-                    <div key={item.id} className="border rounded-lg p-4">
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <h3 className="font-medium">{item.student}</h3>
-                            <Badge variant="outline">{item.type.replace("_", " ")}</Badge>
+                  {pendingAllocations.length === 0 && (
+                    <div className="text-sm text-muted-foreground">No pending allocations.</div>
+                  )}
+                  {pendingAllocations.map((p) => {
+                    const student = getStudentById(p.studentId)
+                    const suggestions = findSuitableSupervisorsForTopic(p.topic)
+                    return (
+                      <div key={p.id} className="border rounded-lg p-4">
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <h3 className="font-medium">{student?.name}</h3>
+                              <Badge variant="outline">Topic</Badge>
+                            </div>
+                            <p className="text-sm font-medium text-balance">{p.topic}</p>
+                            {p.summary && <p className="text-sm text-muted-foreground text-pretty">{p.summary}</p>}
                           </div>
-                          <p className="text-sm font-medium text-balance">{item.title}</p>
-                          <p className="text-sm text-muted-foreground">
-                            Supervisor: {item.supervisor} • Submitted: {item.submittedAt}
-                          </p>
                         </div>
-                        <Badge className={priorityColors[item.priority]}>{item.priority}</Badge>
+                        <div className="grid md:grid-cols-2 gap-3">
+                          <div className="space-y-2">
+                            <div className="text-xs text-muted-foreground">Suggested Supervisors</div>
+                            <div className="flex flex-wrap gap-2">
+                              {suggestions.map(s => (
+                                <Badge key={s.id}>{s.name}</Badge>
+                              ))}
+                              {suggestions.length === 0 && <span className="text-xs text-muted-foreground">No exact matches</span>}
+                            </div>
+                          </div>
+                          <div className="space-y-2">
+                            <div className="text-xs text-muted-foreground">Assign Supervisor</div>
+                            <Select value={assignSelection[p.id] || ""} onValueChange={(val) => setAssignSelection(prev => ({ ...prev, [p.id]: val }))}>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Choose supervisor" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {supervisors.map(s => (
+                                  <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                        <div className="flex gap-2 mt-4">
+                          <Button size="sm" onClick={() => handleAssign(p.id, p.studentId)}>
+                            <Check className="h-4 w-4 mr-2" /> Assign
+                          </Button>
+                        </div>
                       </div>
-                      <div className="flex gap-2">
-                        <Button size="sm" asChild>
-                          <Link href={`/review/${item.id}`}>Review & Approve</Link>
-                        </Button>
-                        <Button size="sm" variant="outline" asChild>
-                          <Link href={`/review/${item.id}`}>View Details</Link>
-                        </Button>
-                        <Button size="sm" variant="outline" asChild>
-                          <Link href={`/review/${item.id}`}>Request Changes</Link>
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               </CardContent>
             </Card>
@@ -177,41 +190,23 @@ export default function CoordinatorDashboard() {
                     <CardTitle>Department Supervisors</CardTitle>
                     <CardDescription>Manage and monitor supervisor performance</CardDescription>
                   </div>
-                  <Button>Add Supervisor</Button>
+                  <Button><UserPlus className="h-4 w-4 mr-2"/>Add Supervisor</Button>
                 </div>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {mockSupervisors.map((supervisor) => (
+                  {supervisors.map((supervisor) => (
                     <div key={supervisor.id} className="border rounded-lg p-4">
                       <div className="flex items-start justify-between mb-3">
                         <div className="flex-1">
                           <h3 className="font-medium">{supervisor.name}</h3>
-                          <p className="text-sm text-muted-foreground">{supervisor.email}</p>
+                          <p className="text-sm text-muted-foreground">{supervisor.department}</p>
                         </div>
                         <div className="text-right">
-                          <div className="text-sm font-medium">Rating: {supervisor.avgRating}/5.0</div>
-                          <div className="text-xs text-muted-foreground">{supervisor.completedTheses} completed</div>
+                          <div className="text-xs text-muted-foreground">Specialties: {(supervisor.specialties || []).join(", ")}</div>
                         </div>
                       </div>
-                      <div className="grid md:grid-cols-2 gap-4 text-sm">
-                        <div>
-                          <span className="text-muted-foreground">Active Students:</span>
-                          <span className="ml-2 font-medium">{supervisor.activeStudents}</span>
-                        </div>
-                        <div>
-                          <span className="text-muted-foreground">Total Completed:</span>
-                          <span className="ml-2 font-medium">{supervisor.completedTheses}</span>
-                        </div>
-                      </div>
-                      <div className="flex gap-2 mt-4">
-                        <Button size="sm" variant="outline">
-                          View Profile
-                        </Button>
-                        <Button size="sm" variant="outline">
-                          Assign Students
-                        </Button>
-                      </div>
+                      <div className="text-sm text-muted-foreground">School: {supervisor.school}</div>
                     </div>
                   ))}
                 </div>

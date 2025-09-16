@@ -1,8 +1,7 @@
 "use client"
 
 import type React from "react"
-
-import { useState } from "react"
+import { FormEvent, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -10,29 +9,49 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { GraduationCap, ArrowLeft } from "lucide-react"
 import Link from "next/link"
+import { authenticateUser } from "@/lib/demo-data"
 
 export default function LoginPage() {
   const [isSignup, setIsSignup] = useState(false)
   const [formData, setFormData] = useState({
-    email: "",
+    username: "",
     password: "",
     school: "",
     department: "",
-    role: "student" as "student" | "supervisor" | "coordinator" | "superuser",
   })
+  const [error, setError] = useState("")
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
-    // TODO: Implement Clerk authentication
-    console.log("Login/Signup attempt:", formData)
-    // Mock redirect based on role
+    setError("")
+    
+    if (isSignup) {
+      // For signup, default role is student
+      console.log("Signup attempt:", formData)
+      // TODO: Add user to demo data
+      alert("Account created successfully! You can now login.")
+      setIsSignup(false)
+      return
+    }
+
+    // For login, authenticate against demo data
+    const user = authenticateUser(formData.username, formData.password)
+    if (!user) {
+      setError("Invalid username or password")
+      return
+    }
+
+    // Redirect based on authenticated user's role
     const redirectMap = {
       student: "/student-dashboard",
-      supervisor: "/supervisor-dashboard",
+      supervisor: "/supervisor-dashboard", 
       coordinator: "/coordinator-dashboard",
       superuser: "/superuser-dashboard",
     } as const
-    window.location.href = redirectMap[formData.role]
+    
+    // Store user in sessionStorage for demo purposes
+    sessionStorage.setItem("currentUser", JSON.stringify(user))
+    window.location.href = redirectMap[user.role]
   }
 
   return (
@@ -48,7 +67,11 @@ export default function LoginPage() {
         <Card>
           <CardHeader className="text-center">
             <div className="flex justify-center mb-4">
-              <GraduationCap className="h-12 w-12 text-accent" />
+              <GraduationCap style={{
+                color: "var(--primary)",
+                height: "48px",
+                width: "48px"
+              }}/>
             </div>
             <CardTitle className="text-2xl">{isSignup ? "Create Account" : "Welcome Back"}</CardTitle>
             <CardDescription>
@@ -57,12 +80,17 @@ export default function LoginPage() {
           </CardHeader>
 
           <CardContent>
+            {error && (
+              <div className="mb-4 p-3 bg-red-100 border border-red-300 rounded-md text-red-700 text-sm">
+                {error}
+              </div>
+            )}
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
+              {/* <div className="space-y-2">
                 <Label htmlFor="role">Role</Label>
                 <Select
                   value={formData.role}
-                  onValueChange={(value: "student" | "supervisor" | "coordinator" | "superuser") =>
+                  onValueChange={(value: "student" | "supervisor" | "coordinator") =>
                     setFormData({ ...formData, role: value })
                   }
                 >
@@ -73,19 +101,18 @@ export default function LoginPage() {
                     <SelectItem value="student">Student</SelectItem>
                     <SelectItem value="supervisor">Supervisor</SelectItem>
                     <SelectItem value="coordinator">Coordinator</SelectItem>
-                    <SelectItem value="superuser">Administrator</SelectItem>
                   </SelectContent>
                 </Select>
-              </div>
+              </div> */}
 
               <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="username">Username</Label>
                 <Input
-                  id="email"
-                  type="email"
-                  placeholder="your.email@university.edu"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  id="username"
+                  type="username"
+                  placeholder="Enter your username"
+                  value={formData.username}
+                  onChange={(e) => setFormData({ ...formData, username: e.target.value })}
                   required
                 />
               </div>
@@ -95,6 +122,7 @@ export default function LoginPage() {
                 <Input
                   id="password"
                   type="password"
+                  placeholder="Enter your password"
                   value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                   required
@@ -150,7 +178,9 @@ export default function LoginPage() {
               <button
                 type="button"
                 onClick={() => setIsSignup(!isSignup)}
-                className="text-accent hover:text-accent/80 text-sm"
+                style={{
+                  color:'black',
+                }}
               >
                 {isSignup ? "Already have an account? Sign in" : "Don't have an account? Sign up"}
               </button>

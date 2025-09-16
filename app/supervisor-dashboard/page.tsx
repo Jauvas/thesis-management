@@ -1,68 +1,20 @@
+"use client"
+
+import { useEffect, useMemo, useState } from "react"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Users, FileText, CheckCircle, AlertTriangle, MessageSquare, Calendar, Eye } from "lucide-react"
+import { Users, FileText, CheckCircle, AlertTriangle, MessageSquare, Calendar, Eye, Search } from "lucide-react"
 import Link from "next/link"
-
-// Mock user data
-const mockUser = {
-  name: "Dr. Michael Chen",
-  email: "m.chen@university.edu",
-  role: "supervisor" as const,
-  school: "School of Computing",
-  department: "Computer Science",
-}
-
-// Mock data
-const mockStudents = [
-  {
-    id: 1,
-    name: "Sarah Johnson",
-    email: "sarah.johnson@university.edu",
-    thesisTitle: "Machine Learning Applications in Healthcare Data Analysis",
-    status: "in_progress",
-    progress: 65,
-    lastContact: "2024-03-10",
-    nextDeadline: "2024-04-15",
-  },
-  {
-    id: 2,
-    name: "David Kim",
-    email: "david.kim@university.edu",
-    thesisTitle: "Blockchain Security in Distributed Systems",
-    status: "proposal_review",
-    progress: 15,
-    lastContact: "2024-03-08",
-    nextDeadline: "2024-04-01",
-  },
-]
-
-const mockPendingReviews = [
-  {
-    id: 1,
-    type: "proposal",
-    student: "David Kim",
-    title: "Blockchain Security in Distributed Systems",
-    submittedAt: "2024-03-08",
-    priority: "high",
-  },
-  {
-    id: 2,
-    type: "thesis_chapter",
-    student: "Sarah Johnson",
-    title: "Chapter 3: Methodology",
-    submittedAt: "2024-03-10",
-    priority: "medium",
-  },
-]
+import { Input } from "@/components/ui/input"
+import { type DemoUser } from "@/lib/demo-data"
+import { getStudentsBySupervisor, searchStudentsForSupervisor, schedules, students, proposals } from "@/lib/mock-entities"
 
 const statusColors = {
-  in_progress: "bg-blue-100 text-blue-800",
-  proposal_review: "bg-yellow-100 text-yellow-800",
-  completed: "bg-green-100 text-green-800",
-  on_hold: "bg-gray-100 text-gray-800",
+  current: "bg-blue-100 text-blue-800",
+  ended: "bg-green-100 text-green-800",
 }
 
 const priorityColors = {
@@ -72,10 +24,55 @@ const priorityColors = {
 }
 
 export default function SupervisorDashboard() {
+  const [user, setUser] = useState<DemoUser | null>(null)
+  const [query, setQuery] = useState("")
+  const [activeTab, setActiveTab] = useState("students")
+
+  useEffect(() => {
+    const currentUserStr = sessionStorage.getItem("currentUser")
+    if (!currentUserStr) {
+      window.location.href = "/login"
+      return
+    }
+    setUser(JSON.parse(currentUserStr))
+  }, [])
+
+  const supervisorId = useMemo(() => {
+    // Map DemoUser (id 2 or 6) to supervisor profile id
+    if (!user) return null
+    if (user.id === "2") return "sup-1"
+    if (user.id === "6") return "sup-2"
+    return null
+  }, [user])
+
+  const myStudents = useMemo(() => {
+    if (!supervisorId) return []
+    return query ? searchStudentsForSupervisor(supervisorId, query) : getStudentsBySupervisor(supervisorId)
+  }, [supervisorId, query])
+
+  const currentStudents = myStudents.filter(s => s.status === "current")
+  const endedStudents = myStudents.filter(s => s.status === "ended")
+
+  if (!user || !supervisorId) {
+    return <div>Loading...</div>
+  }
+
+  const pendingReviews = proposals
+    .filter(p => p.assignedSupervisorId === supervisorId)
+    .map((p, i) => {
+      const st = students.find(s => s.id === p.studentId)
+      return {
+        id: p.id,
+        student: st?.name || "Unknown",
+        title: p.topic,
+        submittedAt: new Date(p.submittedAt).toLocaleDateString(),
+        priority: (i % 2 === 0 ? "high" : "medium") as const,
+      }
+    })
+
   return (
-    <DashboardLayout user={mockUser} title="Supervisor Dashboard">
+    <DashboardLayout user={user} title="Supervisor Dashboard">
       <div className="grid gap-6">
-        {/* Quick Stats */}
         <div className="grid md:grid-cols-4 gap-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -83,7 +80,7 @@ export default function SupervisorDashboard() {
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">2</div>
+              <div className="text-2xl font-bold">{currentStudents.length}</div>
               <p className="text-xs text-muted-foreground">Currently supervising</p>
             </CardContent>
           </Card>
@@ -94,85 +91,88 @@ export default function SupervisorDashboard() {
               <FileText className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">2</div>
+              <div className="text-2xl font-bold">{pendingReviews.length}</div>
               <p className="text-xs text-muted-foreground">Awaiting feedback</p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Overdue Items</CardTitle>
-              <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium">Ended Students</CardTitle>
+              <CheckCircle className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">0</div>
-              <p className="text-xs text-muted-foreground">All up to date</p>
+              <div className="text-2xl font-bold">{endedStudents.length}</div>
+              <p className="text-xs text-muted-foreground">Completed supervision</p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">This Month</CardTitle>
-              <CheckCircle className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium">Schedules</CardTitle>
+              <Calendar className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">3</div>
-              <p className="text-xs text-muted-foreground">Reviews completed</p>
+              <div className="text-2xl font-bold">{schedules.filter(s => s.supervisorId === supervisorId).length}</div>
+              <p className="text-xs text-muted-foreground">Meetings & plans</p>
             </CardContent>
           </Card>
         </div>
 
         <Tabs defaultValue="students" className="space-y-4">
           <TabsList>
-            <TabsTrigger value="students">My Students</TabsTrigger>
-            <TabsTrigger value="reviews">Pending Reviews</TabsTrigger>
-            <TabsTrigger value="schedule">Schedule</TabsTrigger>
+            <TabsTrigger value="students" onClick={() => setActiveTab("students")}>My Students</TabsTrigger>
+            <TabsTrigger value="reviews" onClick={() => setActiveTab("reviews")}>Pending Reviews</TabsTrigger>
+            <TabsTrigger value="schedule" onClick={() => setActiveTab("schedule")}>Schedule</TabsTrigger>
+            <TabsTrigger value="previous" onClick={() => setActiveTab("previous")}>Previous Students</TabsTrigger>
           </TabsList>
 
           <TabsContent value="students" className="space-y-4">
             <Card>
               <CardHeader>
                 <CardTitle>Students Under Supervision</CardTitle>
-                <CardDescription>Monitor progress and provide guidance</CardDescription>
+                <CardDescription>Filter, search and manage</CardDescription>
               </CardHeader>
               <CardContent>
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="flex items-center gap-2 flex-1">
+                    <Search className="h-4 w-4 text-muted-foreground" />
+                    <Input placeholder="Search by student name or research topic" value={query} onChange={(e) => setQuery(e.target.value)} />
+                  </div>
+                  <Button asChild variant="outline">
+                    <Link href="#students">All Students</Link>
+                  </Button>
+                </div>
+
                 <div className="space-y-4">
-                  {mockStudents.map((student) => (
-                    <div key={student.id} className="border rounded-lg p-4">
+                  {currentStudents.map((s) => (
+                    <div key={s.id} className="border rounded-lg p-4">
                       <div className="flex items-start justify-between mb-3">
                         <div className="flex-1">
-                          <h3 className="font-medium">{student.name}</h3>
-                          <p className="text-sm text-muted-foreground">{student.email}</p>
-                          <p className="text-sm font-medium mt-1 text-balance">{student.thesisTitle}</p>
+                          <h3 className="font-medium">{s.name}</h3>
+                          <p className="text-sm text-muted-foreground">{s.course} • {s.regNo}</p>
+                          <p className="text-sm font-medium mt-1 text-balance">{s.researchTopic}</p>
                         </div>
-                        <Badge className={statusColors[student.status]}>{student.status.replace("_", " ")}</Badge>
-                      </div>
-                      <div className="grid md:grid-cols-3 gap-4 text-sm">
-                        <div>
-                          <span className="text-muted-foreground">Progress:</span>
-                          <span className="ml-2 font-medium">{student.progress}%</span>
-                        </div>
-                        <div>
-                          <span className="text-muted-foreground">Last Contact:</span>
-                          <span className="ml-2">{student.lastContact}</span>
-                        </div>
-                        <div>
-                          <span className="text-muted-foreground">Next Deadline:</span>
-                          <span className="ml-2">{student.nextDeadline}</span>
-                        </div>
+                        <Badge className={statusColors[s.status]}>{s.status}</Badge>
                       </div>
                       <div className="flex gap-2 mt-4">
-                        <Button size="sm" variant="outline">
-                          <MessageSquare className="h-4 w-4 mr-2" />
-                          Message
+                        <Button size="sm" variant="outline" asChild>
+                          <Link href={`/supervisor/student/${s.id}/message`}>
+                            <MessageSquare className="h-4 w-4 mr-2" />
+                            Message
+                          </Link>
                         </Button>
-                        <Button size="sm" variant="outline">
-                          <Calendar className="h-4 w-4 mr-2" />
-                          Schedule Meeting
+                        <Button size="sm" variant="outline" asChild>
+                          <Link href={`/supervisor/student/${s.id}/schedule`}>
+                            <Calendar className="h-4 w-4 mr-2" />
+                            Schedule Meeting
+                          </Link>
                         </Button>
-                        <Button size="sm" variant="outline">
-                          <Eye className="h-4 w-4 mr-2" />
-                          View Details
+                        <Button size="sm" variant="outline" asChild>
+                          <Link href={`/supervisor/student/${s.id}` }>
+                            <Eye className="h-4 w-4 mr-2" />
+                            View Details
+                          </Link>
                         </Button>
                       </div>
                     </div>
@@ -186,17 +186,17 @@ export default function SupervisorDashboard() {
             <Card>
               <CardHeader>
                 <CardTitle>Pending Reviews</CardTitle>
-                <CardDescription>Items awaiting your feedback and approval</CardDescription>
+                <CardDescription>First-come, first-served</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {mockPendingReviews.map((review) => (
+                  {pendingReviews.map((review) => (
                     <div key={review.id} className="border rounded-lg p-4">
                       <div className="flex items-start justify-between mb-3">
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-1">
                             <h3 className="font-medium">{review.student}</h3>
-                            <Badge variant="outline">{review.type.replace("_", " ")}</Badge>
+                            <Badge variant="outline">request</Badge>
                           </div>
                           <p className="text-sm font-medium text-balance">{review.title}</p>
                           <p className="text-sm text-muted-foreground">Submitted: {review.submittedAt}</p>
@@ -207,9 +207,7 @@ export default function SupervisorDashboard() {
                         <Button size="sm" asChild>
                           <Link href={`/review/${review.id}`}>Review Now</Link>
                         </Button>
-                        <Button size="sm" variant="outline">
-                          Download
-                        </Button>
+                        <Button size="sm" variant="outline">Download</Button>
                       </div>
                     </div>
                   ))}
@@ -225,12 +223,62 @@ export default function SupervisorDashboard() {
                 <CardDescription>Meetings and important dates</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="text-center py-8 text-muted-foreground">
-                  <Calendar className="h-12 w-12 mx-auto mb-4" />
-                  <p>No upcoming meetings scheduled</p>
-                  <Button className="mt-4 bg-transparent" variant="outline">
-                    Schedule Meeting
-                  </Button>
+                <div className="space-y-3">
+                  {schedules.filter(s => s.supervisorId === supervisorId).map(s => (
+                    <div key={s.id} className="border rounded-md p-3 flex items-center justify-between">
+                      <div>
+                        <p className="font-medium">{s.title}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {new Date(s.startAt).toLocaleString()} - {new Date(s.endAt).toLocaleTimeString()}
+                        </p>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button size="sm" variant="outline" asChild>
+                          <Link href={`/supervisor/schedule/${s.id}/reschedule`}>Reschedule</Link>
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                  {schedules.filter(s => s.supervisorId === supervisorId).length === 0 && (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <Calendar className="h-12 w-12 mx-auto mb-4" />
+                      <p>No upcoming meetings scheduled</p>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="previous" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Previous Students</CardTitle>
+                <CardDescription>All ended supervisions</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {endedStudents.map((s) => (
+                    <div key={s.id} className="border rounded-lg p-4">
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex-1">
+                          <h3 className="font-medium">{s.name}</h3>
+                          <p className="text-sm text-muted-foreground">{s.course} • {s.regNo}</p>
+                          <p className="text-sm font-medium mt-1 text-balance">{s.researchTopic}</p>
+                        </div>
+                        <Badge className={statusColors[s.status]}>{s.status}</Badge>
+                      </div>
+                      <div className="flex gap-2 mt-4">
+                        <Button size="sm" variant="outline" asChild>
+                          <Link href={`/supervisor/student/${s.id}` }>
+                            <Eye className="h-4 w-4 mr-2" />
+                            View Details
+                          </Link>
+                        </Button>
+                        <Button size="sm" variant="outline">Download</Button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </CardContent>
             </Card>
