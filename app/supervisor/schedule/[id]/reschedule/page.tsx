@@ -1,29 +1,50 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
+import { useUser } from "@clerk/nextjs"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Calendar, RotateCcw } from "lucide-react"
-import { type DemoUser } from "@/lib/demo-data"
-import { schedules, reschedule } from "@/lib/mock-entities"
 
 export default function SupervisorReschedulePage() {
   const params = useParams<{ id: string }>()
   const router = useRouter()
-  const [user, setUser] = useState<DemoUser | null>(null)
-  const schedule = useMemo(() => schedules.find(s => s.id === params.id), [params.id])
+  const { user: clerkUser, isLoaded } = useUser()
+  const [user, setUser] = useState<any>(null)
+  const [schedule, setSchedule] = useState<any>(null)
   const [date, setDate] = useState("")
   const [startTime, setStartTime] = useState("")
   const [endTime, setEndTime] = useState("")
 
   useEffect(() => {
-    const currentUserStr = sessionStorage.getItem("currentUser")
-    if (!currentUserStr) { window.location.href = "/login"; return }
-    setUser(JSON.parse(currentUserStr))
-  }, [])
+    if (!isLoaded) return
+    if (!clerkUser) { window.location.href = "/sign-in"; return }
+
+    const loadData = async () => {
+      try {
+        // Get user data
+        const meRes = await fetch("/api/auth/me")
+        if (meRes.ok) {
+          const userData = await meRes.json()
+          setUser(userData)
+        }
+
+        // TODO: Get schedule data from API
+        // const scheduleRes = await fetch(`/api/schedules/${params.id}`)
+        // if (scheduleRes.ok) {
+        //   const scheduleData = await scheduleRes.json()
+        //   setSchedule(scheduleData.schedule)
+        // }
+      } catch (error) {
+        console.error("Failed to load data:", error)
+      }
+    }
+
+    loadData()
+  }, [isLoaded, clerkUser, params.id])
 
   useEffect(() => {
     if (schedule) {
@@ -37,13 +58,24 @@ export default function SupervisorReschedulePage() {
 
   if (!user || !schedule) return <div>Loading...</div>
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!date || !startTime || !endTime) return
     const startAt = new Date(`${date}T${startTime}:00`).toISOString()
     const endAt = new Date(`${date}T${endTime}:00`).toISOString()
-    reschedule(schedule.id, startAt, endAt)
-    alert("Meeting rescheduled.")
-    router.push("/supervisor-dashboard")
+    
+    try {
+      // TODO: Call API to reschedule
+      // await fetch(`/api/schedules/${schedule.id}`, { 
+      //   method: "PATCH", 
+      //   headers: { "Content-Type": "application/json" },
+      //   body: JSON.stringify({ startAt, endAt })
+      // })
+      alert("Meeting rescheduled.")
+      router.push("/supervisor-dashboard")
+    } catch (error) {
+      console.error("Failed to reschedule:", error)
+      alert("Failed to reschedule meeting.")
+    }
   }
 
   return (

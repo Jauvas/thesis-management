@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useUser } from "@clerk/nextjs"
+import { useUser, useClerk } from "@clerk/nextjs"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -30,6 +30,7 @@ const priorityColors: Record<string, string> = {
 
 export default function StudentDashboard() {
   const { user: clerkUser, isLoaded } = useUser()
+  const { signOut } = useClerk()
   const [user, setUser] = useState<any>(null)
   const [unreadNotifications, setUnreadNotifications] = useState(0)
   const [supervisorName, setSupervisorName] = useState<string | null>(null)
@@ -100,6 +101,11 @@ export default function StudentDashboard() {
 
   return (
     <DashboardLayout user={user} title="Student Dashboard">
+      <div className="flex justify-end mb-4">
+        <Button variant="outline" onClick={async () => { await signOut(); window.location.href = "/sign-in" }}>
+          Sign Out
+        </Button>
+      </div>
       <div className="grid gap-6">
         {/* Quick Stats */}
         <div className="grid md:grid-cols-4 gap-4">
@@ -172,25 +178,11 @@ export default function StudentDashboard() {
                   Awaiting supervisor allocation. Submit your proposal if you haven't yet.
                 </div>
               )}
-              {mockTheses.map((thesis) => (
-                <div key={thesis.id} className="space-y-3">
-                  <div>
-                    <h3 className="font-medium text-balance">{thesis.title}</h3>
-                    <p className="text-sm text-muted-foreground">Supervisor: {thesis.supervisor}</p>
-                  </div>
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between text-sm">
-                      <span>Progress</span>
-                      <span>{thesis.progress}%</span>
-                    </div>
-                    <Progress value={thesis.progress} className="h-2" />
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <Badge className={statusColors[thesis.status]}>In Progress</Badge>
-                    <span className="text-sm text-muted-foreground">Updated {thesis.lastUpdated}</span>
-                  </div>
-                </div>
-              ))}
+              <div className="text-center py-8 text-muted-foreground">
+                <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p>No thesis submissions yet</p>
+                <p className="text-sm">Submit your first proposal to get started</p>
+              </div>
             </CardContent>
           </Card>
 
@@ -201,18 +193,10 @@ export default function StudentDashboard() {
               <CardDescription>Stay on track with your thesis milestones</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-3">
-                {mockTasks.map((task) => (
-                  <div key={task.id} className="flex items-center justify-between p-3 border rounded-lg">
-                    <div className="flex-1">
-                      <p className="font-medium text-sm text-balance">{task.task}</p>
-                      <p className="text-xs text-muted-foreground">Due: {task.due}</p>
-                    </div>
-                    <Badge className={priorityColors[task.priority]} variant="secondary">
-                      {task.priority}
-                    </Badge>
-                  </div>
-                ))}
+              <div className="text-center py-8 text-muted-foreground">
+                <Clock className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p>No upcoming tasks</p>
+                <p className="text-sm">Tasks will appear here once you start your thesis</p>
               </div>
             </CardContent>
           </Card>
@@ -245,26 +229,10 @@ export default function StudentDashboard() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {mockProposals.map((proposal) => (
-                <div key={proposal.id} className="border rounded-lg p-4">
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex-1">
-                      <h3 className="font-medium text-balance">{proposal.title}</h3>
-                      <p className="text-sm text-muted-foreground">Submitted: {proposal.submittedAt}</p>
-                    </div>
-                    <Badge className={statusColors[proposal.status]}>Approved</Badge>
-                  </div>
-                  {proposal.feedback && (
-                    <div className="bg-muted p-3 rounded-md">
-                      <div className="flex items-start gap-2">
-                        <MessageSquare className="h-4 w-4 text-muted-foreground mt-0.5" />
-                        <p className="text-sm text-pretty">{proposal.feedback}</p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ))}
+            <div className="text-center py-8 text-muted-foreground">
+              <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <p>No proposals submitted yet</p>
+              <p className="text-sm">Create your first proposal to get started</p>
             </div>
           </CardContent>
         </Card>

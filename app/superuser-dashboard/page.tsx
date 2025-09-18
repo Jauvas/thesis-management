@@ -1,3 +1,6 @@
+"use client"
+
+import { useEffect, useState } from "react"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -5,84 +8,77 @@ import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Users, Building, Settings, UserPlus, Database, Activity } from "lucide-react"
 import Link from "next/link"
-
-// Mock user data
-const mockUser = {
-  name: "System Administrator",
-  email: "admin@university.edu",
-  role: "superuser" as const,
-}
-
-// Mock data
-const systemStats = {
-  totalUsers: 156,
-  activeCoordinators: 8,
-  activeSupervisors: 24,
-  totalStudents: 124,
-  systemHealth: "excellent",
-}
-
-const mockUsers = [
-  {
-    id: 1,
-    name: "Prof. Lisa Anderson",
-    email: "l.anderson@university.edu",
-    role: "coordinator",
-    school: "School of Computing",
-    department: "Computer Science",
-    lastActive: "2024-03-12",
-    status: "active",
-  },
-  {
-    id: 2,
-    name: "Dr. Michael Chen",
-    email: "m.chen@university.edu",
-    role: "supervisor",
-    school: "School of Computing",
-    department: "Computer Science",
-    lastActive: "2024-03-11",
-    status: "active",
-  },
-]
-
-const mockSystemLogs = [
-  {
-    id: 1,
-    action: "User Created",
-    details: "New supervisor account created for Dr. Sarah Williams",
-    timestamp: "2024-03-12 14:30:00",
-    severity: "info",
-  },
-  {
-    id: 2,
-    action: "Role Changed",
-    details: "Dr. Michael Chen promoted to coordinator",
-    timestamp: "2024-03-12 10:15:00",
-    severity: "warning",
-  },
-]
-
-const roleColors = {
-  coordinator: "bg-purple-100 text-purple-800",
-  supervisor: "bg-green-100 text-green-800",
-  student: "bg-blue-100 text-blue-800",
-}
-
-const statusColors = {
-  active: "bg-green-100 text-green-800",
-  inactive: "bg-gray-100 text-gray-800",
-  suspended: "bg-red-100 text-red-800",
-}
-
-const severityColors = {
-  info: "bg-blue-100 text-blue-800",
-  warning: "bg-yellow-100 text-yellow-800",
-  error: "bg-red-100 text-red-800",
-}
+import { useRouter } from "next/navigation"
 
 export default function SuperuserDashboard() {
+  const router = useRouter()
+  const [user, setUser] = useState<any>(null)
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const response = await fetch("/api/admin/verify")
+        const data = await response.json()
+        
+        if (!data.authenticated) {
+          router.push("/superuser-login")
+          return
+        }
+        
+        setUser(data.user)
+      } catch (error) {
+        console.error("Auth check failed:", error)
+        router.push("/superuser-login")
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    checkAuth()
+  }, [router])
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    )
+  }
+
+  if (!user) {
+    return null
+  }
+
+  // Static system stats (would be fetched from API in real app)
+  const systemStats = {
+    totalUsers: 0,
+    activeCoordinators: 0,
+    activeSupervisors: 0,
+    totalStudents: 0,
+    systemHealth: "excellent",
+  }
+
+  const roleColors = {
+    coordinator: "bg-purple-100 text-purple-800",
+    supervisor: "bg-green-100 text-green-800",
+    student: "bg-blue-100 text-blue-800",
+  }
+
+  const statusColors = {
+    active: "bg-green-100 text-green-800",
+    inactive: "bg-gray-100 text-gray-800",
+    suspended: "bg-red-100 text-red-800",
+  }
+
+  const severityColors = {
+    info: "bg-blue-100 text-blue-800",
+    warning: "bg-yellow-100 text-yellow-800",
+    error: "bg-red-100 text-red-800",
+  }
+
   return (
-    <DashboardLayout user={mockUser} title="System Administration">
+    <DashboardLayout user={user} title="System Administration">
       <div className="grid gap-6">
         {/* System Overview */}
         <div className="grid md:grid-cols-4 gap-4">
@@ -155,39 +151,10 @@ export default function SuperuserDashboard() {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  {mockUsers.map((user) => (
-                    <div key={user.id} className="border rounded-lg p-4">
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <h3 className="font-medium">{user.name}</h3>
-                            <Badge className={roleColors[user.role]}>{user.role}</Badge>
-                            <Badge className={statusColors[user.status]}>{user.status}</Badge>
-                          </div>
-                          <p className="text-sm text-muted-foreground">{user.email}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {user.school} • {user.department}
-                          </p>
-                        </div>
-                        <div className="text-right text-sm text-muted-foreground">Last active: {user.lastActive}</div>
-                      </div>
-                      <div className="flex gap-2">
-                        <Button size="sm" variant="outline">
-                          Edit User
-                        </Button>
-                        <Button size="sm" variant="outline">
-                          Change Role
-                        </Button>
-                        <Button size="sm" variant="outline">
-                          Reset Password
-                        </Button>
-                        <Button size="sm" variant="destructive">
-                          Suspend
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
+                <div className="text-center py-8 text-muted-foreground">
+                  <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>No users found</p>
+                  <p className="text-sm">Create your first user to get started</p>
                 </div>
               </CardContent>
             </Card>
@@ -254,19 +221,10 @@ export default function SuperuserDashboard() {
                 <CardDescription>Monitor system events and user actions</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  {mockSystemLogs.map((log) => (
-                    <div key={log.id} className="border rounded-lg p-4">
-                      <div className="flex items-start justify-between mb-2">
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-medium">{log.action}</h3>
-                          <Badge className={severityColors[log.severity]}>{log.severity}</Badge>
-                        </div>
-                        <span className="text-sm text-muted-foreground">{log.timestamp}</span>
-                      </div>
-                      <p className="text-sm text-muted-foreground text-pretty">{log.details}</p>
-                    </div>
-                  ))}
+                <div className="text-center py-8 text-muted-foreground">
+                  <Activity className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>No system logs available</p>
+                  <p className="text-sm">System activity will appear here</p>
                 </div>
               </CardContent>
             </Card>

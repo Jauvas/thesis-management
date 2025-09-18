@@ -7,8 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Calendar, Clock } from "lucide-react"
-import { type DemoUser } from "@/lib/demo-data"
-import { addSchedule, getStudentById } from "@/lib/mock-entities"
+import { useUser } from "@clerk/nextjs"
 
 export default function SupervisorScheduleMeetingPage() {
   const params = useParams<{ id: string }>()

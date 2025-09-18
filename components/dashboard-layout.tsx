@@ -13,12 +13,15 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { GraduationCap, LogOut, Settings, User } from "lucide-react"
 import Link from "next/link"
+import { useClerk } from "@clerk/nextjs"
+import { useRouter } from "next/navigation"
 
 interface DashboardLayoutProps {
   children: React.ReactNode
   user: {
-    name: string
-    email: string
+    name?: string
+    username?: string
+    email?: string
     role: "student" | "supervisor" | "coordinator" | "superuser"
     school?: string
     department?: string
@@ -41,11 +44,32 @@ const roleLabels = {
 }
 
 export function DashboardLayout({ children, user, title }: DashboardLayoutProps) {
-  const initials = user.name
+  const { signOut } = useClerk()
+  const router = useRouter()
+  const displayName = (user.name && user.name.trim())
+    || (user.username && user.username.trim())
+    || (user.email ? user.email.split("@")[0] : "User")
+
+  const initials = displayName
     .split(" ")
+    .filter(Boolean)
     .map((n) => n[0])
     .join("")
     .toUpperCase()
+
+  const handleSignOut = async () => {
+    try {
+      if (user.role === "superuser") {
+        await fetch("/api/admin/logout", { method: "POST" })
+        router.push("/superuser-login")
+      } else {
+        await signOut()
+        router.push("/sign-in")
+      }
+    } catch (_err) {
+      router.push(user.role === "superuser" ? "/superuser-login" : "/sign-in")
+    }
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -63,6 +87,11 @@ export function DashboardLayout({ children, user, title }: DashboardLayoutProps)
               </div>
             </div>
 
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={handleSignOut} className="hidden md:inline-flex">
+                <LogOut className="mr-2 h-4 w-4" />
+                Sign Out
+              </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="flex items-center gap-2">
@@ -72,15 +101,15 @@ export function DashboardLayout({ children, user, title }: DashboardLayoutProps)
                     </AvatarFallback>
                   </Avatar>
                   <div className="hidden md:block text-left">
-                    <div className="text-sm font-medium">{user.name}</div>
-                    <div className="text-xs text-muted-foreground">{user.email}</div>
+                    <div className="text-sm font-medium">{displayName}</div>
+                    <div className="text-xs text-muted-foreground">{user.email || user.username}</div>
                   </div>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
                 <div className="px-2 py-1.5">
-                  <div className="text-sm font-medium">{user.name}</div>
-                  <div className="text-xs text-muted-foreground">{user.email}</div>
+                  <div className="text-sm font-medium">{displayName}</div>
+                  <div className="text-xs text-muted-foreground">{user.email || user.username}</div>
                   {user.school && (
                     <div className="text-xs text-muted-foreground">
                       {user.school} • {user.department}
@@ -101,12 +130,16 @@ export function DashboardLayout({ children, user, title }: DashboardLayoutProps)
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem className="text-destructive">
+                <DropdownMenuItem
+                  className="text-destructive"
+                  onClick={handleSignOut}
+                >
                   <LogOut className="mr-2 h-4 w-4" />
                   Sign Out
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+            </div>
           </div>
         </div>
       </header>
@@ -115,7 +148,7 @@ export function DashboardLayout({ children, user, title }: DashboardLayoutProps)
       <main className="container mx-auto px-4 py-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-primary mb-2">{title}</h1>
-          <p className="text-muted-foreground">Welcome back, {user.name.split(" ")[0]}!</p>
+          <p className="text-muted-foreground">Welcome back, {displayName.split(" ")[0]}!</p>
         </div>
         {children}
       </main>

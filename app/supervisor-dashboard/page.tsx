@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { useUser } from "@clerk/nextjs"
+import { useUser, useClerk } from "@clerk/nextjs"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -24,6 +24,7 @@ const priorityColors = {
 
 export default function SupervisorDashboard() {
   const { user: clerkUser, isLoaded } = useUser()
+  const { signOut } = useClerk()
   const [user, setUser] = useState<any>(null)
   const [query, setQuery] = useState("")
   const [activeTab, setActiveTab] = useState("students")
@@ -98,6 +99,11 @@ export default function SupervisorDashboard() {
 
   return (
     <DashboardLayout user={user} title="Supervisor Dashboard">
+      <div className="flex justify-end mb-4">
+        <Button variant="outline" onClick={async () => { await signOut(); window.location.href = "/sign-in" }}>
+          Sign Out
+        </Button>
+      </div>
       <div className="grid gap-6">
         <div className="grid md:grid-cols-4 gap-4">
           <Card>

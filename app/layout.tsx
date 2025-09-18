@@ -3,7 +3,7 @@ import type { Metadata } from "next"
 import { GeistSans } from "geist/font/sans"
 import { GeistMono } from "geist/font/mono"
 // Note: Analytics removed for frontend-only simplification
-import { Suspense } from "react"
+import { ReactNode, Suspense } from "react"
 import "../styles/globals.css"
 import { ClerkProvider } from "@clerk/nextjs"
 
@@ -16,7 +16,7 @@ export const metadata: Metadata = {
 export default function RootLayout({
   children,
 }: Readonly<{
-  children: React.ReactNode
+  children: ReactNode
 }>) {
   return (
     <ClerkProvider>

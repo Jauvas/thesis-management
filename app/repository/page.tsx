@@ -9,85 +9,8 @@ import { Badge } from "@/components/ui/badge"
 import { Search, Download, Calendar, User, ArrowLeft, Filter, SortAsc, Eye, BookOpen } from "lucide-react"
 import Link from "next/link"
 
-// Enhanced mock data for demonstration
-const mockTheses = [
-  {
-    id: 1,
-    title: "Machine Learning Applications in Healthcare Data Analysis",
-    author: "Sarah Johnson",
-    school: "School of Computing",
-    department: "Computer Science",
-    year: 2024,
-    abstract:
-      "This thesis explores the application of machine learning algorithms in analyzing healthcare data to improve patient outcomes and diagnostic accuracy. The research focuses on developing predictive models for early disease detection and treatment optimization using large-scale medical datasets.",
-    keywords: ["Machine Learning", "Healthcare", "Data Analysis", "Predictive Modeling"],
-    downloadUrl: "#",
-    supervisor: "Dr. Michael Chen",
-    pages: 156,
-    citations: 23,
-    downloads: 342,
-    publishedAt: "2024-03-15",
-    grade: "A+",
-    category: "Research",
-  },
-  {
-    id: 2,
-    title: "Sustainable Urban Planning: A Case Study of Smart Cities",
-    author: "Michael Chen",
-    school: "School of Engineering",
-    department: "Civil Engineering",
-    year: 2024,
-    abstract:
-      "An investigation into sustainable urban planning practices and their implementation in modern smart city initiatives. This study examines the integration of IoT technologies, renewable energy systems, and data-driven decision making in urban development.",
-    keywords: ["Urban Planning", "Sustainability", "Smart Cities", "IoT", "Renewable Energy"],
-    downloadUrl: "#",
-    supervisor: "Prof. Lisa Anderson",
-    pages: 203,
-    citations: 18,
-    downloads: 287,
-    publishedAt: "2024-02-28",
-    grade: "A",
-    category: "Applied Research",
-  },
-  {
-    id: 3,
-    title: "Blockchain Technology in Supply Chain Management",
-    author: "Emily Rodriguez",
-    school: "School of Business",
-    department: "Information Systems",
-    year: 2023,
-    abstract:
-      "This research examines the potential of blockchain technology to revolutionize supply chain transparency and efficiency. The study includes implementation case studies and analysis of cost-benefit implications for various industries.",
-    keywords: ["Blockchain", "Supply Chain", "Technology", "Transparency", "Efficiency"],
-    downloadUrl: "#",
-    supervisor: "Dr. David Kim",
-    pages: 178,
-    citations: 31,
-    downloads: 456,
-    publishedAt: "2023-12-10",
-    grade: "A+",
-    category: "Technology Innovation",
-  },
-  {
-    id: 4,
-    title: "Quantum Computing Applications in Cryptography",
-    author: "David Park",
-    school: "School of Computing",
-    department: "Computer Science",
-    year: 2023,
-    abstract:
-      "An exploration of quantum computing's impact on modern cryptographic systems, including analysis of quantum-resistant algorithms and their implementation challenges in real-world scenarios.",
-    keywords: ["Quantum Computing", "Cryptography", "Security", "Algorithms"],
-    downloadUrl: "#",
-    supervisor: "Dr. Sarah Williams",
-    pages: 189,
-    citations: 27,
-    downloads: 398,
-    publishedAt: "2023-11-22",
-    grade: "A",
-    category: "Theoretical Research",
-  },
-]
+// Empty array - would be populated from API in real app
+const mockTheses: any[] = []
 
 const schools = [
   "All Schools",

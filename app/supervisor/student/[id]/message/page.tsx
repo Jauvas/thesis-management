@@ -8,8 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Send } from "lucide-react"
-import { type DemoUser } from "@/lib/demo-data"
-import { getStudentById, sendMessage } from "@/lib/mock-entities"
+import { useUser } from "@clerk/nextjs"
 
 export default function SupervisorSendMessagePage() {
   const params = useParams<{ id: string }>()

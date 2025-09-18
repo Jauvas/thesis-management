@@ -74,7 +74,7 @@ export const demoUsers: DemoUser[] = [
   {
     id: "4",
     username: "admin",
-    email: "admin@university.edu",
+    email: "admin@thesis.com",
     password: "admin123",
     role: "superuser",
     name: "System Administrator"

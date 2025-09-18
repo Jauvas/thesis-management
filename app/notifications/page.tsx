@@ -1,40 +1,61 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useUser } from "@clerk/nextjs"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Bell, CheckCircle, MessageSquare, Check } from "lucide-react"
-import { getNotificationsByUserId, markCommentAsResolved, type DemoUser, type Notification } from "@/lib/demo-data"
 
 export default function NotificationsPage() {
-  const [user, setUser] = useState<DemoUser | null>(null)
-  const [notifications, setNotifications] = useState<Notification[]>([])
+  const { user: clerkUser, isLoaded } = useUser()
+  const [user, setUser] = useState<any>(null)
+  const [notifications, setNotifications] = useState<any[]>([])
 
   useEffect(() => {
-    // Get current user from sessionStorage
-    const currentUserStr = sessionStorage.getItem("currentUser")
-    if (currentUserStr) {
-      const currentUser = JSON.parse(currentUserStr)
-      setUser(currentUser)
-      setNotifications(getNotificationsByUserId(currentUser.id))
-    } else {
-      // Redirect to login if no user
-      window.location.href = "/login"
-    }
-  }, [])
+    if (!isLoaded) return
+    if (!clerkUser) { window.location.href = "/sign-in"; return }
 
-  const handleResolveComment = (notificationId: string, commentId: string) => {
-    markCommentAsResolved(commentId)
-    // Update local state
-    setNotifications(prev => 
-      prev.map(n => 
-        n.id === notificationId 
-          ? { ...n, isResolved: true, resolvedAt: new Date().toISOString() }
-          : n
+    const loadData = async () => {
+      try {
+        // Get user data
+        const meRes = await fetch("/api/auth/me")
+        if (meRes.ok) {
+          const userData = await meRes.json()
+          setUser(userData)
+        }
+
+        // Get notifications
+        const notifRes = await fetch("/api/notifications")
+        if (notifRes.ok) {
+          const notifData = await notifRes.json()
+          setNotifications(notifData.notifications || [])
+        }
+      } catch (error) {
+        console.error("Failed to load data:", error)
+      }
+    }
+
+    loadData()
+  }, [isLoaded, clerkUser])
+
+  const handleResolveComment = async (notificationId: string, commentId: string) => {
+    try {
+      // TODO: Call API to mark comment as resolved
+      // await fetch(`/api/comments/${commentId}/resolve`, { method: "POST" })
+      
+      // Update local state
+      setNotifications(prev => 
+        prev.map(n => 
+          n.id === notificationId 
+            ? { ...n, isResolved: true, resolvedAt: new Date().toISOString() }
+            : n
+        )
       )
-    )
+    } catch (error) {
+      console.error("Failed to resolve comment:", error)
+    }
   }
 
   if (!user) {

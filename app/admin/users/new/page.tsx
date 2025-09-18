@@ -9,13 +9,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import { ArrowLeft } from "lucide-react"
+import { ArrowLeft, Eye, EyeOff } from "lucide-react"
 import Link from "next/link"
 
 // Mock admin user
 const mockUser = {
   name: "System Administrator",
-  email: "admin@university.edu",
+  email: "admin@thesis.com",
   role: "superuser" as const,
 }
 
@@ -31,6 +31,7 @@ export default function CreateUserPage() {
     department: "",
     specialties: "",
   })
+  const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
   const [success, setSuccess] = useState("")
@@ -68,7 +69,7 @@ export default function CreateUserPage() {
 
       setSuccess("User created successfully!")
       setTimeout(() => {
-        router.push("/superuser-dashboard")
+      router.push("/superuser-dashboard")
       }, 2000)
     } catch (err: any) {
       setError(err.message)
@@ -154,13 +155,23 @@ export default function CreateUserPage() {
 
               <div className="space-y-2">
                 <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  value={formData.password}
-                  onChange={(e) => handleChange("password", e.target.value)}
-                  required
-                />
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    value={formData.password}
+                    onChange={(e) => handleChange("password", e.target.value)}
+                    required
+                    className="pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
               </div>
 
               <div className="space-y-2">
@@ -169,7 +180,8 @@ export default function CreateUserPage() {
                   id="username"
                   value={formData.username}
                   onChange={(e) => handleChange("username", e.target.value)}
-                  placeholder="Required if your Clerk instance enforces usernames"
+                  placeholder="Enter username"
+                  required
                 />
               </div>
 

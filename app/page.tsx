@@ -17,9 +17,12 @@ export default function HomePage() {
             </div>
             <div className="flex gap-2">
               <Button variant="outline" asChild>
-                <Link href="/login">Login</Link>
+                <Link href="/sign-in">Sign In</Link>
               </Button>
               <Button asChild>
+                <Link href="/sign-up">Sign Up</Link>
+              </Button>
+              <Button variant="secondary" asChild>
                 <Link href="/superuser-login">Admin Login</Link>
               </Button>
             </div>
@@ -37,7 +40,7 @@ export default function HomePage() {
           </p>
           <div className="flex gap-4 justify-center">
             <Button size="lg" asChild>
-              <Link href="/login">Get Started</Link>
+              <Link href="/sign-up">Get Started</Link>
             </Button>
             <Button variant="outline" size="lg" asChild>
               <Link href="/repository">Browse Research</Link>

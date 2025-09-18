@@ -5,6 +5,10 @@ const isPublicRoute = createRouteMatcher([
   "/sign-in(.*)",
   "/sign-up(.*)",
   "/superuser-login(.*)",
+  "/api/auth/register(.*)",
+  "/api/admin/login(.*)", // TEMP: allow admin login without auth
+  "/api/admin/verify(.*)", // TEMP: allow admin verify without auth
+  "/superuser-dashboard(.*)", // TEMP: allow dashboard during hardcoded auth
   "/repository(.*)",
   "/_next(.*)",
   "/favicon.ico",

@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useUser } from "@clerk/nextjs"
+import { useUser, useClerk } from "@clerk/nextjs"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -16,7 +16,7 @@ import Link from "next/link"
 
 // Remove mock user/data
 
-// Using supervisors from mock entities
+// Using real data from API routes
 
 // Coordinator no longer approves proposals; focuses on supervisor allocations
 
@@ -28,6 +28,7 @@ const priorityColors = {
 
 export default function CoordinatorDashboard() {
   const { user: clerkUser, isLoaded } = useUser()
+  const { signOut } = useClerk()
   const [user, setUser] = useState<any>(null)
   const [assignSelection, setAssignSelection] = useState<Record<string, string>>({})
   const [pendingAllocations, setPendingAllocations] = useState<any[]>([])
@@ -36,6 +37,7 @@ export default function CoordinatorDashboard() {
   useEffect(() => {
     const fetchData = async () => {
       if (!isLoaded) return
+      // Require Clerk sign-in again for coordinator dashboard
       if (!clerkUser) { window.location.href = "/sign-in"; return }
       try {
         const response = await fetch("/api/auth/me")
@@ -81,8 +83,24 @@ export default function CoordinatorDashboard() {
 
   if (!user) return <div>Loading...</div>
 
+  // Fallback department stats during testing to avoid reference errors
+  const departmentStats = {
+    totalStudents: 0,
+    pendingApprovals: 0,
+    completedThisYear: 0,
+  }
+
+  // Temporary helpers to avoid reference errors in UI mapping
+  const getStudentById = (_id: string) => ({ name: "Student" })
+  const findSuitableSupervisorsForTopic = (_topic: string) => [] as Array<{ id: string; name: string }>
+
   return (
     <DashboardLayout user={user} title="Coordinator Dashboard">
+      <div className="flex justify-end mb-4">
+        <Button variant="outline" onClick={async () => { await signOut(); window.location.href = "/sign-in" }}>
+          Sign Out
+        </Button>
+      </div>
       <div className="grid gap-6">
         {/* Department Overview */}
         <div className="grid md:grid-cols-4 gap-4">

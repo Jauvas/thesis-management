@@ -7,11 +7,12 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
-import { Eye, EyeOff } from "lucide-react"
+import { Eye, EyeOff, ArrowLeft } from "lucide-react"
+import Link from "next/link"
 
 export default function SignInPage() {
   const { isLoaded, signIn, setActive } = useSignIn()
-  const [emailAddress, setEmailAddress] = useState("")
+  const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
@@ -27,24 +28,29 @@ export default function SignInPage() {
 
     try {
       const result = await signIn.create({
-        identifier: emailAddress,
+        identifier: username,
         password,
       })
 
       if (result.status === "complete") {
         await setActive({ session: result.createdSessionId })
-        // Ensure user exists in Mongo
+        
+        // Ensure user exists in MongoDB (same method as admin create user)
         await fetch("/api/auth/bootstrap", { method: "POST" })
+        
         // Fetch user role and redirect accordingly
         const response = await fetch("/api/auth/me")
-        const user = await response.json()
-        
-        if (user.role === "supervisor") {
-          router.push("/supervisor-dashboard")
-        } else if (user.role === "coordinator") {
-          router.push("/coordinator-dashboard")
-        } else if (user.role === "superuser") {
-          router.push("/superuser-dashboard")
+        if (response.ok) {
+          const user = await response.json()
+          
+          const redirectMap = {
+            student: "/student-dashboard",
+            supervisor: "/supervisor-dashboard", 
+            coordinator: "/coordinator-dashboard",
+            superuser: "/superuser-dashboard",
+          } as const
+          
+          router.push(redirectMap[user.role] || "/student-dashboard")
         } else {
           router.push("/student-dashboard")
         }
@@ -58,20 +64,28 @@ export default function SignInPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle>Sign In</CardTitle>
-          <CardDescription>Enter your credentials to access your account</CardDescription>
-        </CardHeader>
+      <div className="w-full max-w-md">
+        <div className="flex items-center justify-center mb-8">
+          <Link href="/" className="flex items-center gap-2 text-primary hover:text-accent transition-colors">
+            <ArrowLeft className="h-4 w-4" />
+            <span>Back to Home</span>
+          </Link>
+        </div>
+        
+        <Card>
+          <CardHeader>
+            <CardTitle>Sign In</CardTitle>
+            <CardDescription>Enter your credentials to access your account</CardDescription>
+          </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="username">Username</Label>
               <Input
-                id="email"
-                type="email"
-                value={emailAddress}
-                onChange={(e) => setEmailAddress(e.target.value)}
+                id="username"
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
                 required
               />
             </div>
@@ -116,7 +130,8 @@ export default function SignInPage() {
             </p>
           </div>
         </CardContent>
-      </Card>
+        </Card>
+      </div>
     </div>
   )
 }
