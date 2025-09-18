@@ -7,26 +7,25 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ArrowLeft } from "lucide-react"
 import Link from "next/link"
 
-// Mock admin user
+// Mock coordinator user
 const mockUser = {
-  name: "System Administrator",
-  email: "admin@university.edu",
-  role: "superuser" as const,
+  name: "Prof. Lisa Anderson",
+  email: "l.anderson@university.edu",
+  role: "coordinator" as const,
 }
 
-export default function CreateUserPage() {
+export default function CreateSupervisorPage() {
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
     email: "",
     password: "",
     username: "",
-    role: "",
     school: "",
     department: "",
     specialties: "",
@@ -54,7 +53,7 @@ export default function CreateUserPage() {
           password: formData.password,
           firstName: formData.firstName,
           lastName: formData.lastName,
-          role: formData.role,
+          role: "supervisor",
           school: formData.school,
           department: formData.department,
           specialties: formData.specialties.split(",").map(s => s.trim()).filter(Boolean),
@@ -63,12 +62,12 @@ export default function CreateUserPage() {
 
       if (!response.ok) {
         const errorData = await response.json()
-        throw new Error(errorData.error || "Failed to create user")
+        throw new Error(errorData.error || "Failed to create supervisor")
       }
 
-      setSuccess("User created successfully!")
+      setSuccess("Supervisor created successfully!")
       setTimeout(() => {
-        router.push("/superuser-dashboard")
+        router.push("/coordinator-dashboard")
       }, 2000)
     } catch (err: any) {
       setError(err.message)
@@ -84,6 +83,7 @@ export default function CreateUserPage() {
     }
     setFormData(prev => ({ ...prev, [field]: value }))
   }
+
   const schools = [
     "School of Computing",
     "School of Engineering",
@@ -102,12 +102,11 @@ export default function CreateUserPage() {
 
   const availableDepartments = formData.school ? departmentsBySchool[formData.school] || [] : []
 
-
   return (
-    <DashboardLayout user={mockUser} title="Create New User">
+    <DashboardLayout user={mockUser} title="Create New Supervisor">
       <div className="max-w-2xl mx-auto">
         <div className="mb-6">
-          <Link href="/superuser-dashboard" className="inline-flex items-center text-sm text-gray-600 hover:text-gray-900">
+          <Link href="/coordinator-dashboard" className="inline-flex items-center text-sm text-gray-600 hover:text-gray-900">
             <ArrowLeft className="h-4 w-4 mr-1" />
             Back to Dashboard
           </Link>
@@ -115,8 +114,8 @@ export default function CreateUserPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Create New User</CardTitle>
-            <CardDescription>Add a new supervisor or coordinator to the system</CardDescription>
+            <CardTitle>Create New Supervisor</CardTitle>
+            <CardDescription>Add a new supervisor to the department</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
@@ -174,19 +173,6 @@ export default function CreateUserPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="role">Role</Label>
-                <Select value={formData.role} onValueChange={(value) => handleChange("role", value)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select role" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="supervisor">Supervisor</SelectItem>
-                    <SelectItem value="coordinator">Coordinator</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
                 <Label htmlFor="school">School</Label>
                 <Select value={formData.school} onValueChange={(value) => handleChange("school", value)}>
                   <SelectTrigger id="school">
@@ -214,21 +200,20 @@ export default function CreateUserPage() {
                 </Select>
               </div>
 
-              {formData.role === "supervisor" && (
-                <div className="space-y-2">
-                  <Label htmlFor="specialties">Research Specialties</Label>
-                  <Textarea
-                    id="specialties"
-                    value={formData.specialties}
-                    onChange={(e) => handleChange("specialties", e.target.value)}
-                    placeholder="Enter specialties separated by commas (e.g., Machine Learning, Data Science, AI)"
-                    rows={3}
-                  />
-                  <p className="text-sm text-gray-500">
-                    These specialties will be used to match students with appropriate supervisors
-                  </p>
-                </div>
-              )}
+              <div className="space-y-2">
+                <Label htmlFor="specialties">Research Specialties</Label>
+                <Textarea
+                  id="specialties"
+                  value={formData.specialties}
+                  onChange={(e) => handleChange("specialties", e.target.value)}
+                  placeholder="Enter specialties separated by commas (e.g., Machine Learning, Data Science, AI)"
+                  rows={3}
+                  required
+                />
+                <p className="text-sm text-gray-500">
+                  These specialties will be used to match students with appropriate supervisors
+                </p>
+              </div>
 
               {error && (
                 <div className="text-red-500 text-sm">{error}</div>
@@ -240,9 +225,9 @@ export default function CreateUserPage() {
 
               <div className="flex gap-3">
                 <Button type="submit" disabled={isLoading}>
-                  {isLoading ? "Creating User..." : "Create User"}
+                  {isLoading ? "Creating Supervisor..." : "Create Supervisor"}
                 </Button>
-                <Button type="button" variant="outline" onClick={() => router.push("/superuser-dashboard")}>
+                <Button type="button" variant="outline" onClick={() => router.push("/coordinator-dashboard")}>
                   Cancel
                 </Button>
               </div>

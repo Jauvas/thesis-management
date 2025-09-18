@@ -11,8 +11,10 @@ const isPublicRoute = createRouteMatcher([
   "/images(.*)",
 ])
 
-export default clerkMiddleware((auth, req) => {
-  if (!isPublicRoute(req)) auth().protect()
+export default clerkMiddleware(async (auth, req) => {
+  if (!isPublicRoute(req)) {
+    await auth.protect()
+  }
 })
 
 export const config = {
@@ -21,5 +23,6 @@ export const config = {
     "/(api)(.*)",
   ],
 }
+
 
 

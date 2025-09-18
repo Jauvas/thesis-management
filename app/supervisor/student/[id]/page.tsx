@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
+import { useUser } from "@clerk/nextjs"
 import { useParams } from "next/navigation"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -9,32 +10,41 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Download, MessageSquare, CheckCircle, FileText, Upload } from "lucide-react"
-import { type DemoUser, addSupervisorComment } from "@/lib/demo-data"
-import { getStudentById, getThesisVersions } from "@/lib/mock-entities"
+// Remove mock imports; use API routes
 
 export default function SupervisorStudentDetailsPage() {
   const params = useParams<{ id: string }>()
-  const [user, setUser] = useState<DemoUser | null>(null)
+  const { user: clerkUser, isLoaded } = useUser()
+  const [user, setUser] = useState<any>(null)
   const [comment, setComment] = useState("")
-  const student = useMemo(() => getStudentById(params.id), [params.id])
-  const versions = useMemo(() => getThesisVersions(params.id), [params.id])
+  const [student, setStudent] = useState<any | null>(null)
+  const [versions, setVersions] = useState<any[]>([])
 
   useEffect(() => {
-    const currentUserStr = sessionStorage.getItem("currentUser")
-    if (!currentUserStr) {
-      window.location.href = "/login"
-      return
+    if (!isLoaded) return
+    if (!clerkUser) { window.location.href = "/sign-in"; return }
+    setUser(clerkUser)
+
+    const load = async () => {
+      const stRes = await fetch(`/api/students/${params.id}`)
+      if (stRes.ok) {
+        const stJson = await stRes.json()
+        setStudent(stJson.profile)
+      }
+
+      // TODO: replace with real versions API when available
+      setVersions([])
     }
-    setUser(JSON.parse(currentUserStr))
-  }, [])
+    load()
+  }, [isLoaded, clerkUser, params.id])
 
   if (!user || !student) {
     return <div>Loading...</div>
   }
 
-  const handleAddComment = () => {
+  const handleAddComment = async () => {
     if (!comment.trim()) return
-    addSupervisorComment({ studentUserId: student.userId, supervisorUserId: user.id, thesisId: student.id, content: comment.trim() })
+    // TODO: POST to a comments API route
     setComment("")
     alert("Comment sent and student notified.")
   }
@@ -114,5 +124,6 @@ export default function SupervisorStudentDetailsPage() {
     </DashboardLayout>
   )
 }
+
 
 

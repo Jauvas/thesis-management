@@ -1,16 +1,15 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
+import { useUser } from "@clerk/nextjs"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Users, FileText, CheckCircle, AlertTriangle, MessageSquare, Calendar, Eye, Search } from "lucide-react"
+import { Users, FileText, CheckCircle, MessageSquare, Calendar, Eye, Search } from "lucide-react"
 import Link from "next/link"
 import { Input } from "@/components/ui/input"
-import { type DemoUser } from "@/lib/demo-data"
-import { getStudentsBySupervisor, searchStudentsForSupervisor, schedules, students, proposals } from "@/lib/mock-entities"
 
 const statusColors = {
   current: "bg-blue-100 text-blue-800",
@@ -24,51 +23,78 @@ const priorityColors = {
 }
 
 export default function SupervisorDashboard() {
-  const [user, setUser] = useState<DemoUser | null>(null)
+  const { user: clerkUser, isLoaded } = useUser()
+  const [user, setUser] = useState<any>(null)
   const [query, setQuery] = useState("")
   const [activeTab, setActiveTab] = useState("students")
+  const [myStudents, setMyStudents] = useState<any[]>([])
+  const [pendingReviews, setPendingReviews] = useState<any[]>([])
 
   useEffect(() => {
-    const currentUserStr = sessionStorage.getItem("currentUser")
-    if (!currentUserStr) {
-      window.location.href = "/login"
-      return
+    if (!isLoaded) return
+    if (!clerkUser) { window.location.href = "/sign-in"; return }
+
+    const bootstrap = async () => {
+      // Fetch merged auth/me for role and profile info
+      const meRes = await fetch("/api/auth/me")
+      if (!meRes.ok) { window.location.href = "/sign-in"; return }
+      const me = await meRes.json()
+      setUser(me)
+
+      // Load students for this supervisor
+      const supId = clerkUser.id
+      const stRes = await fetch(`/api/supervisors/${supId}/students`)
+      if (stRes.ok) {
+        const stJson = await stRes.json()
+        setMyStudents(stJson.students || [])
+      } else {
+        setMyStudents([])
+      }
+
+      // Pending proposals for reviews (filter by assignedSupervisorId)
+      const propRes = await fetch("/api/proposals")
+      if (propRes.ok) {
+        const pj = await propRes.json()
+        const list = Array.isArray(pj.proposals) ? pj.proposals : []
+        const reviews = list
+          .filter((p: any) => p.assignedSupervisorId === supId)
+          .map((p: any, i: number) => ({
+            id: p.id || p._id,
+            student: p.studentName || p.studentId,
+            title: p.topic,
+            submittedAt: p.submittedAt ? new Date(p.submittedAt).toLocaleDateString() : "",
+            priority: (i % 2 === 0 ? "high" : "medium") as const,
+          }))
+        setPendingReviews(reviews)
+      } else {
+        setPendingReviews([])
+      }
     }
-    setUser(JSON.parse(currentUserStr))
-  }, [])
+
+    bootstrap()
+  }, [isLoaded, clerkUser])
 
   const supervisorId = useMemo(() => {
-    // Map DemoUser (id 2 or 6) to supervisor profile id
-    if (!user) return null
-    if (user.id === "2") return "sup-1"
-    if (user.id === "6") return "sup-2"
-    return null
-  }, [user])
+    if (!clerkUser) return null
+    return clerkUser.id
+  }, [clerkUser])
 
-  const myStudents = useMemo(() => {
-    if (!supervisorId) return []
-    return query ? searchStudentsForSupervisor(supervisorId, query) : getStudentsBySupervisor(supervisorId)
-  }, [supervisorId, query])
+  const filteredStudents = useMemo(() => {
+    if (!query) return myStudents
+    const q = query.toLowerCase()
+    return myStudents.filter((s: any) =>
+      (s.name || "").toLowerCase().includes(q) || (s.researchTopic || "").toLowerCase().includes(q)
+    )
+  }, [myStudents, query])
 
-  const currentStudents = myStudents.filter(s => s.status === "current")
-  const endedStudents = myStudents.filter(s => s.status === "ended")
+  const currentStudents = filteredStudents.filter((s: any) => s.status === "current")
+  const endedStudents = filteredStudents.filter((s: any) => s.status === "ended")
 
   if (!user || !supervisorId) {
     return <div>Loading...</div>
   }
 
-  const pendingReviews = proposals
-    .filter(p => p.assignedSupervisorId === supervisorId)
-    .map((p, i) => {
-      const st = students.find(s => s.id === p.studentId)
-      return {
-        id: p.id,
-        student: st?.name || "Unknown",
-        title: p.topic,
-        submittedAt: new Date(p.submittedAt).toLocaleDateString(),
-        priority: (i % 2 === 0 ? "high" : "medium") as const,
-      }
-    })
+  const schedulesForSup: any[] = []
 
   return (
     <DashboardLayout user={user} title="Supervisor Dashboard">
@@ -113,7 +139,7 @@ export default function SupervisorDashboard() {
               <Calendar className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{schedules.filter(s => s.supervisorId === supervisorId).length}</div>
+              <div className="text-2xl font-bold">{schedulesForSup.length}</div>
               <p className="text-xs text-muted-foreground">Meetings & plans</p>
             </CardContent>
           </Card>
@@ -224,7 +250,7 @@ export default function SupervisorDashboard() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {schedules.filter(s => s.supervisorId === supervisorId).map(s => (
+                  {schedulesForSup.map((s: any) => (
                     <div key={s.id} className="border rounded-md p-3 flex items-center justify-between">
                       <div>
                         <p className="font-medium">{s.title}</p>
@@ -239,7 +265,7 @@ export default function SupervisorDashboard() {
                       </div>
                     </div>
                   ))}
-                  {schedules.filter(s => s.supervisorId === supervisorId).length === 0 && (
+                  {schedulesForSup.length === 0 && (
                     <div className="text-center py-8 text-muted-foreground">
                       <Calendar className="h-12 w-12 mx-auto mb-4" />
                       <p>No upcoming meetings scheduled</p>

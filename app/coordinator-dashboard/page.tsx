@@ -1,6 +1,7 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useState } from "react"
+import { useUser } from "@clerk/nextjs"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -10,25 +11,10 @@ import { Progress } from "@/components/ui/progress"
 import { Users, AlertCircle, GraduationCap, UserPlus, Check } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import type { DemoUser } from "@/lib/demo-data"
-import { proposals, supervisors, findSupervisorByUserId, findSupervisorByUserId as _ignore, getStudentById, findSuitableSupervisorsForTopic, coordinatorAssignSupervisor } from "@/lib/mock-entities"
+import Link from "next/link"
+// Use API routes only
 
-// Mock user data
-const mockUser = {
-  name: "Prof. Lisa Anderson",
-  email: "l.anderson@university.edu",
-  role: "coordinator" as const,
-  school: "School of Computing",
-  department: "Computer Science",
-}
-
-// Mock data
-const departmentStats = {
-  totalStudents: 45,
-  activeTheses: 32,
-  pendingApprovals: 0,
-  completedThisYear: 12,
-}
+// Remove mock user/data
 
 // Using supervisors from mock entities
 
@@ -41,23 +27,56 @@ const priorityColors = {
 }
 
 export default function CoordinatorDashboard() {
-  const [user, setUser] = useState<DemoUser | null>(null)
+  const { user: clerkUser, isLoaded } = useUser()
+  const [user, setUser] = useState<any>(null)
   const [assignSelection, setAssignSelection] = useState<Record<string, string>>({})
+  const [pendingAllocations, setPendingAllocations] = useState<any[]>([])
+  const [supervisors, setSupervisors] = useState<any[]>([])
 
   useEffect(() => {
-    // In real app, use auth user; here use mock coordinator
-    setUser(mockUser as unknown as DemoUser)
-  }, [])
+    const fetchData = async () => {
+      if (!isLoaded) return
+      if (!clerkUser) { window.location.href = "/sign-in"; return }
+      try {
+        const response = await fetch("/api/auth/me")
+        if (!response.ok) throw new Error("auth")
+        const userData = await response.json()
+        setUser(userData)
 
-  const pendingAllocations = useMemo(() => proposals.filter(p => !p.assignedSupervisorId), [])
+        // Fetch pending proposals via API
+        const proposalsRes = await fetch("/api/proposals")
+        const proposalsJson = proposalsRes.ok ? await proposalsRes.json() : { proposals: [] }
+        setPendingAllocations(proposalsJson.proposals || [])
 
-  const handleAssign = (proposalId: string, studentId: string) => {
+        // Fetch supervisors list - placeholder API (by department or all)
+        // If there is an API route like /api/users?role=supervisor, use it; else empty list
+        setSupervisors([])
+      } catch (error) {
+        console.error("Failed to fetch data:", error)
+        setUser(null)
+        setPendingAllocations([])
+        setSupervisors([])
+      }
+    }
+
+    fetchData()
+  }, [isLoaded, clerkUser])
+
+  const handleAssign = async (proposalId: string, studentId: string) => {
     const supId = assignSelection[proposalId]
     if (!supId) return
-    coordinatorAssignSupervisor("coord-1", studentId, supId)
-    const p = proposals.find(px => px.id === proposalId)
-    if (p) p.assignedSupervisorId = supId
-    alert("Supervisor assigned.")
+    
+    try {
+      await fetch(`/api/proposals/${proposalId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ assignedSupervisorId: supId, status: "approved" }) })
+      alert("Supervisor assigned.")
+      // Refresh data
+      const proposalsRes = await fetch("/api/proposals")
+      const proposalsJson = proposalsRes.ok ? await proposalsRes.json() : { proposals: [] }
+      setPendingAllocations(proposalsJson.proposals || [])
+    } catch (error) {
+      console.error("Failed to assign supervisor:", error)
+      alert("Failed to assign supervisor.")
+    }
   }
 
   if (!user) return <div>Loading...</div>
@@ -190,7 +209,12 @@ export default function CoordinatorDashboard() {
                     <CardTitle>Department Supervisors</CardTitle>
                     <CardDescription>Manage and monitor supervisor performance</CardDescription>
                   </div>
-                  <Button><UserPlus className="h-4 w-4 mr-2"/>Add Supervisor</Button>
+                  <Button asChild>
+                    <Link href="/coordinator/supervisors/new">
+                      <UserPlus className="h-4 w-4 mr-2"/>
+                      Add Supervisor
+                    </Link>
+                  </Button>
                 </div>
               </CardHeader>
               <CardContent>

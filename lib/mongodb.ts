@@ -1,6 +1,8 @@
+import "server-only"
 import { MongoClient, ServerApiVersion } from "mongodb"
 
 const uri = process.env.MONGODB_URI as string
+
 if (!uri) {
   console.warn("MONGODB_URI is not set. Using mock data only.")
 }
@@ -21,5 +23,6 @@ export function getMongoClient(): Promise<MongoClient> {
   clientPromise = client.connect()
   return clientPromise
 }
+
 
 

@@ -1,37 +1,76 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useUser } from "@clerk/nextjs"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
-import { type DemoUser } from "@/lib/demo-data"
-import { requestProposal, autoAllocateSupervisorByTopic, getSupervisorNameById, students } from "@/lib/mock-entities"
+// Use API route to create proposal; avoid server imports
 
 export default function NewProposalPage() {
-  const [user, setUser] = useState<DemoUser | null>(null)
+  const { user: clerkUser, isLoaded } = useUser()
+  const [user, setUser] = useState<any>(null)
   const [topic, setTopic] = useState("")
   const [summary, setSummary] = useState("")
-  const [allocated, setAllocated] = useState<string | null>(null)
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState("")
+  const [success, setSuccess] = useState("")
 
   useEffect(() => {
-    const currentUserStr = sessionStorage.getItem("currentUser")
-    if (!currentUserStr) { window.location.href = "/login"; return }
-    setUser(JSON.parse(currentUserStr))
-  }, [])
+    if (!isLoaded) return
+    
+    if (!clerkUser) {
+      window.location.href = "/sign-in"
+      return
+    }
+
+    const fetchUser = async () => {
+      try {
+        const response = await fetch("/api/auth/me")
+        const userData = await response.json()
+        setUser(userData)
+      } catch (error) {
+        console.error("Failed to fetch user data:", error)
+        window.location.href = "/sign-in"
+      }
+    }
+
+    fetchUser()
+  }, [isLoaded, clerkUser])
 
   if (!user) return <div>Loading...</div>
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    const studentProfile = students.find(s => s.userId === user.id)
-    if (!studentProfile) { alert("Student profile not found"); return }
-    requestProposal(studentProfile.id, topic, summary)
-    const supId = autoAllocateSupervisorByTopic(studentProfile.id, topic)
-    const supName = supId ? getSupervisorNameById(supId) : null
-    setAllocated(supName || "No suitable supervisor found")
-    alert(supName ? `Supervisor allocated: ${supName}` : "No suitable supervisor found. Coordinator will assign manually.")
+    setIsLoading(true)
+    setError("")
+    setSuccess("")
+
+    try {
+      const res = await fetch("/api/proposals", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ topic, summary }),
+      })
+      if (!res.ok) throw new Error(`Failed to submit proposal: ${res.status}`)
+      const ct = res.headers.get("content-type") || ""
+      if (!ct.includes("application/json")) throw new Error("Non-JSON response from /api/proposals")
+      const { proposal } = await res.json()
+      if (proposal) {
+        setSuccess("Proposal submitted successfully! A coordinator will assign a supervisor.")
+        setTopic("")
+        setSummary("")
+      } else {
+        setError("Failed to submit proposal. Please try again.")
+      }
+    } catch (error) {
+      console.error("Error submitting proposal:", error)
+      setError("Failed to submit proposal. Please try again.")
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -51,9 +90,14 @@ export default function NewProposalPage() {
               <label htmlFor="summary" className="text-sm">Summary</label>
               <Textarea id="summary" value={summary} onChange={(e) => setSummary(e.target.value)} rows={6} />
             </div>
-            <Button type="submit">Submit</Button>
-            {allocated && (
-              <p className="text-sm mt-2">Allocated Supervisor: {allocated}</p>
+            <Button type="submit" disabled={isLoading}>
+              {isLoading ? "Submitting..." : "Submit"}
+            </Button>
+            {error && (
+              <div className="text-red-500 text-sm">{error}</div>
+            )}
+            {success && (
+              <div className="text-green-500 text-sm">{success}</div>
             )}
           </form>
         </CardContent>

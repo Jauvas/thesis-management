@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useUser } from "@clerk/nextjs"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -8,39 +9,11 @@ import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
 import { FileText, Clock, AlertCircle, Plus, Calendar, MessageSquare, Bell } from "lucide-react"
 import Link from "next/link"
-import { type DemoUser, getNotificationsByUserId } from "@/lib/demo-data"
-import { getStudentById, getSupervisorNameById, students } from "@/lib/mock-entities"
+// Use API routes; do not import server code here
 
-// Mock data for demonstration
-const mockProposals = [
-  {
-    id: 1,
-    title: "Machine Learning Applications in Healthcare Data Analysis",
-    status: "approved",
-    submittedAt: "2024-01-15",
-    feedback: "Excellent proposal with clear methodology. Approved to proceed with thesis.",
-  },
-]
+// Removed mock data; all data loads via API routes
 
-const mockTheses = [
-  {
-    id: 1,
-    title: "Machine Learning Applications in Healthcare Data Analysis",
-    status: "in_progress",
-    progress: 65,
-    supervisor: "Dr. Michael Chen",
-    lastUpdated: "2024-03-10",
-    nextDeadline: "2024-04-15",
-  },
-]
-
-const mockTasks = [
-  { id: 1, task: "Complete Chapter 3: Methodology", due: "2024-04-15", priority: "high" },
-  { id: 2, task: "Submit progress report", due: "2024-04-20", priority: "medium" },
-  { id: 3, task: "Schedule supervisor meeting", due: "2024-04-10", priority: "low" },
-]
-
-const statusColors = {
+const statusColors: Record<string, string> = {
   draft: "bg-gray-100 text-gray-800",
   submitted: "bg-blue-100 text-blue-800",
   under_review: "bg-yellow-100 text-yellow-800",
@@ -49,36 +22,77 @@ const statusColors = {
   in_progress: "bg-blue-100 text-blue-800",
 }
 
-const priorityColors = {
+const priorityColors: Record<string, string> = {
   high: "bg-red-100 text-red-800",
   medium: "bg-yellow-100 text-yellow-800",
   low: "bg-green-100 text-green-800",
 }
 
 export default function StudentDashboard() {
-  const [user, setUser] = useState<DemoUser | null>(null)
+  const { user: clerkUser, isLoaded } = useUser()
+  const [user, setUser] = useState<any>(null)
   const [unreadNotifications, setUnreadNotifications] = useState(0)
   const [supervisorName, setSupervisorName] = useState<string | null>(null)
 
   useEffect(() => {
-    // Get current user from sessionStorage
-    const currentUserStr = sessionStorage.getItem("currentUser")
-    if (currentUserStr) {
-      const currentUser = JSON.parse(currentUserStr)
-      setUser(currentUser)
-      // Count unread notifications
-      const notifications = getNotificationsByUserId(currentUser.id)
-      setUnreadNotifications(notifications.filter(n => !n.isRead).length)
-      // Resolve supervisor from student profile
-      const studentProfile = students.find(s => s.userId === currentUser.id)
-      if (studentProfile) {
-        setSupervisorName(getSupervisorNameById(studentProfile.supervisorId) || null)
-      }
-    } else {
-      // Redirect to login if no user
-      window.location.href = "/login"
+    if (!isLoaded) return
+    
+    if (!clerkUser) {
+      window.location.href = "/sign-in"
+      return
     }
-  }, [])
+
+    // Fetch user data from API
+    const fetchUser = async () => {
+      try {
+        const response = await fetch("/api/auth/me")
+        if (!response.ok) {
+          if (response.status === 401) { window.location.href = "/sign-in"; return }
+          throw new Error(`Failed /api/auth/me: ${response.status}`)
+        }
+        const ct = response.headers.get("content-type") || ""
+        if (!ct.includes("application/json")) throw new Error("Non-JSON response from /api/auth/me")
+        const userData = await response.json()
+        setUser(userData)
+        
+        // Count unread notifications
+        const notifsRes = await fetch("/api/notifications")
+        if (!notifsRes.ok) throw new Error(`Failed /api/notifications: ${notifsRes.status}`)
+        const notifCt = notifsRes.headers.get("content-type") || ""
+        if (!notifCt.includes("application/json")) throw new Error("Non-JSON response from /api/notifications")
+        const notifsJson = await notifsRes.json()
+        const notifications = (notifsJson && notifsJson.notifications) || []
+        setUnreadNotifications(notifications.filter((n: any) => !n.isRead).length)
+        
+        // Resolve supervisor from student profile
+        const profRes = await fetch("/api/profile/student")
+        if (!profRes.ok) throw new Error(`Failed /api/profile/student: ${profRes.status}`)
+        const profCt = profRes.headers.get("content-type") || ""
+        if (!profCt.includes("application/json")) throw new Error("Non-JSON response from /api/profile/student")
+        const profJson = await profRes.json()
+        const studentProfile = profJson && profJson.profile
+        if (studentProfile?.supervisorId) {
+          const supRes = await fetch(`/api/supervisors/${studentProfile.supervisorId}`)
+          if (!supRes.ok) throw new Error(`Failed /api/supervisors/${studentProfile.supervisorId}: ${supRes.status}`)
+          const supCt = supRes.headers.get("content-type") || ""
+          if (!supCt.includes("application/json")) throw new Error("Non-JSON response from /api/supervisors/[id]")
+          const supJson = await supRes.json()
+          setSupervisorName((supJson && supJson.profile && supJson.profile.name) || null)
+        }
+      } catch (error) {
+        console.error("Failed to fetch user data:", error)
+        // Fallback to basic user data
+        setUser({
+          id: clerkUser.id,
+          email: clerkUser.emailAddresses?.[0]?.emailAddress,
+          name: clerkUser.firstName ? `${clerkUser.firstName} ${clerkUser.lastName || ""}`.trim() : clerkUser.username,
+          role: "student"
+        })
+      }
+    }
+
+    fetchUser()
+  }, [isLoaded, clerkUser])
 
   if (!user) {
     return <div>Loading...</div>
